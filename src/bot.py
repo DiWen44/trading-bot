@@ -8,6 +8,8 @@ from datetime import datetime
 
 import pandas as pd
 import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.ensemble import RandomForestClassifier
 
 import finnhub
 
@@ -24,6 +26,7 @@ class Bot():
 		finnhub_client - The finnhub API client object for this session
 		newsapi_key - The API key for newsAPI
 		watchlist - An array of 2-value tuples each in form (name, symbol). These are the stocks we will be trading. Loaded from watchlist.csv
+		sentiment_forest - A sklearn RandomForestClassifier: The trained random forest for sentiment analysis
 	"""
 
 
@@ -42,15 +45,28 @@ class Bot():
 			reader = csv.reader(watchlistCsv, delimiter=' ')
 			self.watchlist = [row for row in reader]
 
+		# Create random forest
+		forest = RandomForestClassifier(n_estimators=100)
 
-	def get_news(self, days, company):
+
+	def train_forest():
 		"""
-		Gets current date's news articles from newsAPI for a given company.
-		Returned in the form of an array of strings, each string representing the content of an article
+		Trains the random forest on data from a given CSV file
 
 		PARAMS:
-			days - Number of days prior to get news from (e.g. days=3 will get headlines from the last 3 days)
-			company - Name of the company to get news for
+			csv - Name of csv file housing training data
+		"""
+		self.forest.fit()
+
+
+	def get_headlines(self, days, company):
+		"""
+		Gets current date's news headlines from newsAPI that are pertinent to a given company.
+		Returned in the form of an array of strings, each string representing the headline of an article
+
+		PARAMS:
+			days - Number of days prior to get news headlines from (e.g. days=3 will get headlines from the last 3 days)
+			company - Name of the company to get news headlines for
 		"""
 
 		# Get a dictionary object of the news (newsAPI returns a JSON object)
@@ -58,66 +74,55 @@ class Bot():
 		newsJSON = requests.get(f"https://newsapi.org/v2/everything?q={company}&from={date}&sortBy=popularity&apiKey={self.newsapi_key}").json()
 		news = json.loads(newsJSON)
 
-		articles = [ article['content'] for article in news['articles'] ]
-		return articles
+		headlines = [ (article['title'] + ". " + article['description']) for article in news['articles'] ] # NewsAPI data seperates headlines into title and description - concatenate these 2 together for our purposes
+		return headlines
 
 
-
-	def clean_article(self, text)
+	def clean_headline(self, headline)
 		"""
-		Given the content of an article, "clean" it to prepare for sentiment analysis by:
+		Given a headline, "clean" it to prepare for sentiment analysis by:
 			- Removing non-letter chars
 			- Tokenizing
 			- Setting to lowercase
 			- Removing stopwords
 
-		returns a tokenized (i.e. array of words) and cleaned version of the original text
+		returns a cleaned version of the original text, as a string
 
 		PARAMS:
-			Text - the content of the article
+			headline - the headline as a string
 		"""
 
-		letters_only = re.sub("[^a-zA-Z]"," ", text) # Remove non-letters 
+		letters_only = re.sub("[^a-zA-Z]", " ", text) # Remove non-letters 
 		tokens = letters_only.lower().split() # Lowercase & tokenize
 
 		# Remove stopwords
-		tokens = [tok for tok in tokens if not tok in stopwords.words('english')]
+		stopword_set = set(stopwords.words('english')) # Convert to set for constant lookup time
+		meaningful_word_tokens = [tok for tok in tokens if not tok in stopword_set]
 
-		return tokens
+		return ( " ".join(meaningful_word_tokens) ) # Join tokens back together into single string
 
-
+ 
 	def est_sentiment(self, company):
 		"""
-		Returns the estimated sentiment for a given company, based on news found by self.get_news()
-		The resulting sentiment is based on the titles and descriptions of news articles
-		"""
+		Returns the estimated sentiment for a given company, based on news found by self.get_headlines()
+		The resulting sentiment is based on the headlines of relevant news articles
 
-		articles = self.get_news(3, company)
+		PARAMS:
+			company - Name of the company
+		""" 
 
-		for article in articles:
-			article_tokens = self.clean_article(article)
+		# Get headlines & clean them
+		headlines = self.get_headlines(3, company)
+		clean_headlines = []
+		for headline in headlines:
+			cleaned_headline = self.clean_article(headline)
+			clean_headlines.append(cleaned_headline)
 
-			# Create bag_of_words
-			bag_of_words
-			for word in article:
-				try:
-					bag_of_words[word] += 1
-				except KeyError:
-					bag_of_words[word] = 1
+		# Feature extraction - create vector space for headlines
+		vectorizer = CountVectorizer()
+		features = vectorizer.fit_transform(clean_headlines)
 
-
-
-
-
+		result = forest.predict(features)
 
 
-
-
-
-			
-
-
-
-
-
-
+		
