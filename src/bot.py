@@ -41,7 +41,7 @@ class Bot():
 		self.sentiment_analyzer = SentimentAnalyzer("../data.csv")
 
 
-	def get_headlines(self, days, company):
+	def __get_headlines(self, days, company):
 		"""
 		Gets current date's news headlines from newsAPI that are pertinent to a given company.
 		Returned in the form of an array of strings, each string representing the headline of an article
