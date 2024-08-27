@@ -16,7 +16,7 @@ class SentimentAnalyzer():
 	The sentiment analysis engine consists of 1 parts:
 	- A word2vec vector space model that represents & converts individual words (from headlines) into vectors
 	- A random forest classifier that determines overall sentiment based on a vector embedding for a headline. 
-		This vector embedding is created by averaging the vectors representing the headline's constituent words
+		This vector embedding is created by averaging the vectors that represent the headline's constituent words
 
 	ATTRIBUTES:
 		words_vector_space - a gensim.models.word2vec.Word2Vec object, representing the vector space model
@@ -36,20 +36,22 @@ class SentimentAnalyzer():
 		
 		training_sentiments = []
 		training_headlines = []
-		training_sentences = []
+		training_sentences = [] # Sentences - tokenized & 'cleaned' headlines to train the vec2word model on
 		with open(csv_file_path, newline='') as file:
 			reader = csv.reader(file, delimiter=' ')
 			for row in reader:
 				training_sentiments.append(row[0])
 				training_headlines.append(row[1])
 
-				# Convert headline to 'sentence'
 				training_sentences += __headline_to_sentences(row[1])
 
+		print("LOADED TRAINING DATA FROM FILE")
 
-		# Use word2vec to learn a vector space model for the sentences
+
+		# Use word2vec to learn a word2vec vector space model for the sentences
 		try:
 			self.words_vector_space = Word2Vec.load("words_vector_space")
+			print("USING EXISTING WORD2VEC MODEL.")
 
 		except: # Case where no existant model is found - Create new model here
 			
@@ -65,11 +67,13 @@ class SentimentAnalyzer():
 
 		# Create and train random forest classifier on vectors & yvalues
 		self.forest = RandomForestClassifier(n_estimators=100)
+		print("CREATED CLASSIFIER")
 		training_data_vecs = [__average_feature_vec(headline) for headline in training_headlines]
 		self.forest = forest.fit(training_data_vecs, training_sentiments)
+		print("TRAINED CLASSIFIER")
 
 
-	def __headline_to_sentences(self, headline)
+	def __headline_to_sentences(self, headline):
 		"""
 		PRIVATE METHOD
 		Given a headline, convert it to a list of 'sentences' i.e. a list of lists word tokens,
@@ -124,7 +128,6 @@ class SentimentAnalyzer():
 		PARAMS:
 			headline - The headline as a string
 		"""
-
 		words = headline.split() # Tokenize headline to get array of words
 
 	    # Set containing all words in vector space model's vocabulary
@@ -157,4 +160,5 @@ class SentimentAnalyzer():
 		headline_feature_vec = __average_feature_vec(headline)
 
 		result = self.forest.predict(headline_feature_vec)
+		print(f"{headline} ------------------- {result}")
 		return result

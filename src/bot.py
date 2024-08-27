@@ -38,7 +38,7 @@ class Bot():
 			reader = csv.reader(watchlistCsv, delimiter=' ')
 			self.watchlist = [row for row in reader]
 
-		self.sentiment_analyzer = SentimentAnalyzer("../data.csv")
+		self.sentiment_analyzer = SentimentAnalyzer("../training_data.csv")
 
 
 	def __get_headlines(self, days, company):
