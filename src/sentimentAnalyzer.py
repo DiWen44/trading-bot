@@ -1,4 +1,5 @@
 import csv
+import re
 import numpy as np
 
 from sklearn.ensemble import RandomForestClassifier
@@ -37,20 +38,20 @@ class SentimentAnalyzer():
 		training_sentiments = []
 		training_headlines = []
 		training_sentences = [] # Sentences - tokenized & 'cleaned' headlines to train the vec2word model on
-		with open(csv_file_path, newline='') as file:
+		with open(training_data_csv, newline='') as file:
 			reader = csv.reader(file, delimiter=' ')
 			for row in reader:
 				training_sentiments.append(row[0])
 				training_headlines.append(row[1])
 
-				training_sentences += __headline_to_sentences(row[1])
+				training_sentences += self.__headline_to_sentences(row[1])
 
 		print("LOADED TRAINING DATA FROM FILE")
 
 
 		# Use word2vec to learn a word2vec vector space model for the sentences
 		try:
-			self.words_vector_space = Word2Vec.load("words_vector_space")
+			self.words_vector_space = word2vec.Word2Vec.load("words_vector_space")
 			print("USING EXISTING WORD2VEC MODEL.")
 
 		except: # Case where no existant model is found - Create new model here
@@ -68,8 +69,8 @@ class SentimentAnalyzer():
 		# Create and train random forest classifier on vectors & yvalues
 		self.forest = RandomForestClassifier(n_estimators=100)
 		print("CREATED CLASSIFIER")
-		training_data_vecs = [__average_feature_vec(headline) for headline in training_headlines]
-		self.forest = forest.fit(training_data_vecs, training_sentiments)
+		training_data_vecs = [ self.__average_feature_vec(headline) for headline in training_headlines ]
+		self.forest = self.forest.fit(training_data_vecs, training_sentiments)
 		print("TRAINED CLASSIFIER")
 
 
@@ -130,22 +131,22 @@ class SentimentAnalyzer():
 		"""
 		words = headline.split() # Tokenize headline to get array of words
 
-	    # Set containing all words in vector space model's vocabulary
-	    model_vocabulary = set(self.words_vector_space.index2word)
+		# Set containing all words in vector space model's vocabulary
+		model_vocabulary = set(self.words_vector_space.index2word)
 
-	    # Initialize resultant feature vec
-	    result = np.zeros((100),dtype="float32")
-	    nwords = 0.
+		# Initialize resultant feature vec
+		result = np.zeros((100),dtype="float32")
+		nwords = 0.
 
-	    # If word is in the vector space model's vocab, add it's vector to the result
-	    for word in words:
-	        if word in index2word_set: 
-	            nwords = nwords + 1.
-	            result = np.add(self.words_vector_space[word])
+		# If word is in the vector space model's vocab, add it's vector to the result
+		for word in words:
+			if word in model_vocabulary: 
+				nwords = nwords + 1.
+				result = np.add(self.words_vector_space[word])
 
-	    # Divide the result by the number of words to get the average
-	    result = np.divide(result, nwords)
-	    return result
+		# Divide the result by the number of words to get the average
+		result = np.divide(result, nwords)
+		return result
 
  
 	def est_sentiment(self, headlines):
@@ -157,7 +158,7 @@ class SentimentAnalyzer():
 			headlines - A list of headline strings
 		""" 
 
-		headline_feature_vec = __average_feature_vec(headline)
+		headline_feature_vec = self.__average_feature_vec(headline)
 
 		result = self.forest.predict(headline_feature_vec)
 		print(f"{headline} ------------------- {result}")
