@@ -8,6 +8,7 @@ from gensim.models import word2vec
 import nltk
 nltk.download() # Download NLTK data
 from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
 
 
 class SentimentAnalyzer():
@@ -41,7 +42,9 @@ class SentimentAnalyzer():
 		with open(training_data_csv, newline='') as file:
 			reader = csv.reader(file, delimiter=' ')
 			for row in reader:
+				print(row[0])
 				training_sentiments.append(row[0])
+				print(row[1])
 				training_headlines.append(row[1])
 
 				training_sentences += self.__headline_to_sentences(row[1])
@@ -96,8 +99,7 @@ class SentimentAnalyzer():
 
 		# Tokenize headline string into an array of sentence strings
 		# Using NLTK's sentence tokenizer
-		tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
-		raw_sentences = tokenizer.tokenize(headline.strip())
+		raw_sentences = sent_tokenize(headline.strip())
 
 		# Clean & tokenize each individual sentence
 		sentences = []
@@ -106,11 +108,11 @@ class SentimentAnalyzer():
 
 			if len(raw_sentence) > 0: # Skip empty sentences
 
-				# Remove non-letters 
+				# Remove non-letters - substitute them with spaces
 				letters_only = re.sub("[^a-zA-Z]", " ", raw_sentence) 
 
-				# Lowercase & tokenize
-				tokens = letters_only.lower().split()
+				# convert all letters to lowercase & tokenize
+				tokens = word_tokenize(letters_only.lower())
 
 				# Remove stopwords
 				sentence = [tok for tok in tokens if not tok in stopword_set]
@@ -149,15 +151,16 @@ class SentimentAnalyzer():
 		return result
 
  
-	def est_sentiment(self, headlines):
+	def est_sentiment(self, headline):
 		"""
-		Returns the estimated sentiment for a given company, based on provided headlines
+		Returns the estimated sentiment for a headline
 		The resulting sentiment is based on the headlines of relevant news articles
 
 		PARAMS:
-			headlines - A list of headline strings
+			headlines - A headline string
 		""" 
 
+		# get feature vector representing entire headline, 
 		headline_feature_vec = self.__average_feature_vec(headline)
 
 		result = self.forest.predict(headline_feature_vec)
