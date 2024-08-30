@@ -6,7 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 from gensim.models import word2vec
 
 import nltk
-nltk.download() # Download NLTK data
+nltk.download_shell() # Download NLTK data
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
 
