@@ -4,11 +4,11 @@ import requests
 import csv
 import json
 import re
-from datetime import datetime
-
+from datetime import datetime, timedelta
+import pandas as pd
 import finnhub
 
-import SentimentAnalyzer
+import sentimentAnalyzer
 
 
 class Bot():
@@ -38,25 +38,46 @@ class Bot():
 			reader = csv.reader(watchlistCsv, delimiter=' ')
 			self.watchlist = [row for row in reader]
 
-		self.sentiment_analyzer = SentimentAnalyzer("../training_data.csv")
+		self.sentiment_analyzer = sentimentAnalyzer.SentimentAnalyzer("../training_data.csv")
 
 
-	def __get_headlines(self, days, company):
+	def __get_headlines(self, company, days):
 		"""
-		Gets current date's news headlines from newsAPI that are pertinent to a given company.
+		Gets news headlines from newsAPI that are pertinent to a given company.
 		Returned in the form of an array of strings, each string representing the headline of an article
 
 		PARAMS:
-			days - Number of days prior to get news headlines from (e.g. days=3 will get headlines from the last 3 days)
 			company - Name of the company to get news headlines for
+			days - Number of days prior to get news headlines from (e.g. days=3 will get headlines from the last 3 days)
 		"""
+		
+		# Get start date of time window in string form
+		start_date = (datetime.today() - timedelta(days=days)).strftime('%Y-%m-%d')
 
 		# Get a dictionary object of the news (newsAPI returns a JSON object)
-		date = datetime.today().strftime('%Y-%m-%d')
-		newsJSON = requests.get(f"https://newsapi.org/v2/everything?q={company}&from={date}&sortBy=popularity&apiKey={self.newsapi_key}").json()
+		newsJSON = requests.get(f"https://newsapi.org/v2/everything?q={company}&from={start_date}&sortBy=popularity&apiKey={self.newsapi_key}").json()
 		news = json.loads(newsJSON)
 
 		headlines = [ (article['title'] + ". " + article['description']) for article in news['articles'] ] # NewsAPI data seperates headlines into title and description - concatenate these 2 together for our purposes
 		return headlines
 
-		
+
+	def __get_finnhub_data(self, symbol, days):
+		"""
+		Gets stock price candlestick data from finnhub for a given company.
+		The candles' interval will be in days, so each candlestick represents the stock over a day (rather than a week or month) 
+		Returns this data as a pandas dataframe of the finnhub API response
+
+		PARAMS:
+			symbol - Ticker symbol of the company to get data for
+			days - Time window (in days) in which to get data (e.g. days=3 will get timeseries data over the last 3 days)
+		"""
+
+		present_date = datetime.today() 
+		window_start_date = present_date - timedelta(days=days)
+
+		candles = self.finnhub_client.stock_candles(symbol, 'D', present_date.timestamp(), window_start_date.timestamp())
+		return pd.DataFrame(candles)
+	
+
+	
