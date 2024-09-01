@@ -80,4 +80,15 @@ class Bot():
 		return pd.DataFrame(candles)
 	
 
-	
+	def trading_strat(self, candle_data, sentiment):
+		"""
+		Actually executes trades based on collated data.
+		Essentially, this method defines the trading strategy with which we approach individual stocks
+
+		PARAMS:
+			candle_data - A pytorch dataframe representing the candlestick data for a single stock. This is the data
+							returned by the __get_finnhub_data method in this class
+			sentiment - The estimated sentiment of this stock, as computed by the sentiment analysis engine
+		"""
+
+		

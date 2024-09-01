@@ -1,4 +1,4 @@
 venv
 nltk_data
+training_data.csv
 .env
-all-data.csv

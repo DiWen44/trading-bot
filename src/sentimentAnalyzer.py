@@ -1,6 +1,6 @@
-import csv
 import re
 import numpy as np
+import pandas as pd
 
 from sklearn.ensemble import RandomForestClassifier
 from gensim.models import word2vec
@@ -35,19 +35,8 @@ class SentimentAnalyzer():
 		"""
 
 		# Extract training data from CSV file
-		
-		training_sentiments = []
-		training_headlines = []
-		training_sentences = [] # Sentences - tokenized & 'cleaned' headlines to train the vec2word model on
-		with open(training_data_csv, newline='') as file:
-			reader = csv.reader(file, delimiter=' ')
-			for row in reader:
-				print(row[0])
-				training_sentiments.append(row[0])
-				print(row[1])
-				training_headlines.append(row[1])
-
-				training_sentences += self.__headline_to_sentences(row[1])
+		training_data = pd.read_csv(training_data_csv)
+		training_data['sentence'] = training_data.apply(self.__headline_to_sentences, axis=1)  # Sentences - tokenized & 'cleaned' headlines to train the vec2word model on
 
 		print("LOADED TRAINING DATA FROM FILE")
 
@@ -61,7 +50,7 @@ class SentimentAnalyzer():
 			
 			print("NO WORD2VEC VECTOR SPACE MODEL FOUND. CREATING NEW MODEL.")
 			self.words_vector_space = word2vec.Word2Vec(
-				sentences=training_sentences,
+				sentences=training_data['sentence'],
 				vector_size=100,
 				min_count=10,
 				workers=4
@@ -72,15 +61,17 @@ class SentimentAnalyzer():
 		# Create and train random forest classifier on vectors & yvalues
 		self.forest = RandomForestClassifier(n_estimators=100)
 		print("CREATED CLASSIFIER")
-		training_data_vecs = [ self.__average_feature_vec(headline) for headline in training_headlines ]
-		self.forest = self.forest.fit(training_data_vecs, training_sentiments)
+
+		training_data['vectors'] = training_data.apply(self.__average_feature_vec, axis=1) # Get feature vectors for each headline in training data
+
+		self.forest = self.forest.fit(training_data['vector'], training_data['sentiment'])
 		print("TRAINED CLASSIFIER")
 
 
-	def __headline_to_sentences(self, headline):
+	def __headline_to_sentences(self, row):
 		"""
 		PRIVATE METHOD
-		Given a headline, convert it to a list of 'sentences' i.e. a list of lists word tokens,
+		Convert a headline to a list of 'sentences' i.e. a list of lists word tokens,
 		each sublist represents a single sentence, and each string in it represents a word.
 		Essentially this is tokenization.
 
@@ -94,8 +85,12 @@ class SentimentAnalyzer():
 		returns a cleaned, sentence-split & tokenized version of the original headline
 
 		PARAMS:
-			headline - the headline as a string
+			row - A pd.series representing a row of the dataframe of training data from the CSV file.
+					This contains the headline.
+					Note that we must pass the entire row, so that this method can be passed to df.apply()
 		"""
+
+		headline = row['headline']
 
 		# Tokenize headline string into an array of sentence strings
 		# Using NLTK's sentence tokenizer
@@ -122,15 +117,20 @@ class SentimentAnalyzer():
 		return sentences
 
 
-	def __average_feature_vec(self, headline):
+	def __average_feature_vec(self, row):
 		"""
 		Get the average feature vector for a headline.
 		Since our word2vec vector space model is able to convert individual words to vectors,
 		we can get the average vector of all of a headline's constituent words to get a single vector to represent a headline.
 
 		PARAMS:
-			headline - The headline as a string
+			row - A pd.series representing a row of the dataframe of training data from the CSV file.
+					This contains the headline.
+					Note that we must pass the entire row, so that this method can be passed to df.apply()
 		"""
+
+		headline = row['headline']
+
 		words = headline.split() # Tokenize headline to get array of words
 
 		# Set containing all words in vector space model's vocabulary

@@ -1,0 +1,1 @@
+Trained on data from: https://huggingface.co/datasets/takala/financial_phrasebank
