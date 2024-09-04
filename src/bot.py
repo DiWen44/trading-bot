@@ -33,10 +33,8 @@ class Bot():
 
 		self.newsapi_key = os.getenv('NEWSAPI_KEY')
 
-		# Load watchlist from watchlist.csv
-		with open('../watchlist.csv', newline='') as watchlistCsv:
-			reader = csv.reader(watchlistCsv, delimiter=' ')
-			self.watchlist = [row for row in reader]
+		# Load watchlist from watchlist.csv into a dataframe
+		watchlist = pd.read_csv('../watchlist.csv')
 
 		self.sentiment_analyzer = sentimentAnalyzer.SentimentAnalyzer("../training_data.csv")
 
@@ -62,7 +60,7 @@ class Bot():
 		return headlines
 
 
-	def __get_finnhub_data(self, symbol, days):
+	def __get_candlestick_data(self, symbol, days):
 		"""
 		Gets stock price candlestick data from finnhub for a given company.
 		The candles' interval will be in days, so each candlestick represents the stock over a day (rather than a week or month) 

@@ -1,4 +1,5 @@
 import re
+from os import path
 import numpy as np
 import pandas as pd
 
@@ -36,21 +37,26 @@ class SentimentAnalyzer():
 
 		# Extract training data from CSV file
 		training_data = pd.read_csv(training_data_csv)
-		training_data['sentence'] = training_data.apply(self.__headline_to_sentences, axis=1)  # Sentences - tokenized & 'cleaned' headlines to train the vec2word model on
+		
+		# Get sentences pool from headlines - to train word2vec model
+		sentences_pool = []
+		for headline in training_data['headline']:
+			headline_sentences = self.__headline_to_sentences(headline)
+			sentences_pool += headline_sentences
 
 		print("LOADED TRAINING DATA FROM FILE")
 
-
 		# Use word2vec to learn a word2vec vector space model for the sentences
-		try:
+		if path.isfile("words_vector_space"):
+			# If a model has already been created and saved
 			self.words_vector_space = word2vec.Word2Vec.load("words_vector_space")
 			print("USING EXISTING WORD2VEC MODEL.")
 
-		except: # Case where no existant model is found - Create new model here
-			
+		else: 
+			# Case where no existant model is found - Create new model here
 			print("NO WORD2VEC VECTOR SPACE MODEL FOUND. CREATING NEW MODEL.")
 			self.words_vector_space = word2vec.Word2Vec(
-				sentences=training_data['sentence'],
+				sentences=sentences_pool,
 				vector_size=100,
 				min_count=10,
 				workers=4
@@ -59,20 +65,21 @@ class SentimentAnalyzer():
 			self.words_vector_space.save("words_vector_space") # Save model
 
 		# Create and train random forest classifier on vectors & yvalues
-		self.forest = RandomForestClassifier(n_estimators=100)
+		self.forest = RandomForestClassifier()
 		print("CREATED CLASSIFIER")
 
-		training_data['vectors'] = training_data.apply(self.__average_feature_vec, axis=1) # Get feature vectors for each headline in training data
-
+		training_data['vector'] = training_data.apply(self.__average_feature_vec, axis=1) # Get feature vectors for each headline in training data
+		
+		print(training_data[['vector', 'sentiment']])
 		self.forest = self.forest.fit(training_data['vector'], training_data['sentiment'])
 		print("TRAINED CLASSIFIER")
 
 
-	def __headline_to_sentences(self, row):
+	def __headline_to_sentences(self, headline):
 		"""
 		PRIVATE METHOD
-		Convert a headline to a list of 'sentences' i.e. a list of lists word tokens,
-		each sublist represents a single sentence, and each string in it represents a word.
+		Convert a headline to a list of the 'sentences' that constitute it (a sentence being an array of word tokens that make up a grammatical sentence)
+		In the returned list, each sublist represents a single sentence, and each string in it represents a word.
 		Essentially this is tokenization.
 
 		This is done to generate sentences on which to train the word2vec model
@@ -82,16 +89,11 @@ class SentimentAnalyzer():
 			- Setting to lowercase
 			- Removing stopwords
 
-		returns a cleaned, sentence-split & tokenized version of the original headline
+		Returns a cleaned, sentence-split & tokenized version of the original headline
 
 		PARAMS:
-			row - A pd.series representing a row of the dataframe of training data from the CSV file.
-					This contains the headline.
-					Note that we must pass the entire row, so that this method can be passed to df.apply()
+			headline - the headline, as a string
 		"""
-
-		headline = row['headline']
-
 		# Tokenize headline string into an array of sentence strings
 		# Using NLTK's sentence tokenizer
 		raw_sentences = sent_tokenize(headline.strip())
@@ -134,23 +136,23 @@ class SentimentAnalyzer():
 		words = headline.split() # Tokenize headline to get array of words
 
 		# Set containing all words in vector space model's vocabulary
-		model_vocabulary = set(self.words_vector_space.index2word)
+		model_vocabulary = set(self.words_vector_space.wv.index_to_key)
 
 		# Initialize resultant feature vec
 		result = np.zeros((100),dtype="float32")
-		nwords = 0.
+		numWords = 0.
 
 		# If word is in the vector space model's vocab, add it's vector to the result
 		for word in words:
 			if word in model_vocabulary: 
-				nwords = nwords + 1.
-				result = np.add(self.words_vector_space[word])
+				numWords = numWords + 1.
+				result = np.add(result, self.words_vector_space.wv[word])
 
 		# Divide the result by the number of words to get the average
-		result = np.divide(result, nwords)
+		result = np.divide(result, numWords)
 		return result
 
- 
+
 	def est_sentiment(self, headline):
 		"""
 		Returns the estimated sentiment for a headline
