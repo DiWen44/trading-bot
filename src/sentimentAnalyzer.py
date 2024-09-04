@@ -37,7 +37,7 @@ class SentimentAnalyzer():
 
 		# Extract training data from CSV file
 		training_data = pd.read_csv(training_data_csv)
-		
+
 		# Get sentences pool from headlines - to train word2vec model
 		sentences_pool = []
 		for headline in training_data['headline']:
@@ -71,7 +71,7 @@ class SentimentAnalyzer():
 		training_data['vector'] = training_data.apply(self.__average_feature_vec, axis=1) # Get feature vectors for each headline in training data
 		
 		print(training_data[['vector', 'sentiment']])
-		self.forest = self.forest.fit(training_data['vector'], training_data['sentiment'])
+		self.forest = self.forest.fit(training_data['vector'].to_list(), training_data['sentiment'].to_list())
 		print("TRAINED CLASSIFIER")
 
 
