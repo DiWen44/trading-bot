@@ -68,7 +68,7 @@ class SentimentAnalyzer():
 		self.forest = RandomForestClassifier()
 		print("CREATED CLASSIFIER")
 
-		training_data['vector'] = training_data.apply(self.__average_feature_vec, axis=1) # Get feature vectors for each headline in training data
+		training_data['vector'] = training_data['headline'].apply(self.__average_feature_vec,) # Get feature vectors for each headline in training data
 		
 		print(training_data[['vector', 'sentiment']])
 		self.forest = self.forest.fit(training_data['vector'].to_list(), training_data['sentiment'].to_list())
@@ -119,19 +119,15 @@ class SentimentAnalyzer():
 		return sentences
 
 
-	def __average_feature_vec(self, row):
+	def __average_feature_vec(self, headline):
 		"""
 		Get the average feature vector for a headline.
 		Since our word2vec vector space model is able to convert individual words to vectors,
 		we can get the average vector of all of a headline's constituent words to get a single vector to represent a headline.
 
 		PARAMS:
-			row - A pd.series representing a row of the dataframe of training data from the CSV file.
-					This contains the headline.
-					Note that we must pass the entire row, so that this method can be passed to df.apply()
+			headline - the headline, as a string
 		"""
-
-		headline = row['headline']
 
 		words = headline.split() # Tokenize headline to get array of words
 
@@ -153,18 +149,17 @@ class SentimentAnalyzer():
 		return result
 
 
-	def est_sentiment(self, headline):
+	def est_sentiment(self, headlines):
 		"""
-		Returns the estimated sentiment for a headline
-		The resulting sentiment is based on the headlines of relevant news articles
+		Returns the estimated sentiment for a group of headlines
 
 		PARAMS:
-			headlines - A headline string
+			headlines - An array of headline strings
 		""" 
 
 		# get feature vector representing entire headline, 
-		headline_feature_vec = self.__average_feature_vec(headline)
+		headline_feature_vecs = [self.__average_feature_vec(headline) for headline in headlines]
 
-		result = self.forest.predict(headline_feature_vec)
-		print(f"{headline} ------------------- {result}")
+		result = self.forest.predict(headline_feature_vecs)
+		print(f"SENTMENT: ------------------- {result}")
 		return result
