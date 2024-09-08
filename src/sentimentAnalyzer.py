@@ -1,5 +1,6 @@
 import re
 from os import path
+from collections import Counter
 import numpy as np
 import pandas as pd
 
@@ -70,7 +71,6 @@ class SentimentAnalyzer():
 
 		training_data['vector'] = training_data['headline'].apply(self.__average_feature_vec,) # Get feature vectors for each headline in training data
 		
-		print(training_data[['vector', 'sentiment']])
 		self.forest = self.forest.fit(training_data['vector'].to_list(), training_data['sentiment'].to_list())
 		print("TRAINED CLASSIFIER")
 
@@ -151,15 +151,22 @@ class SentimentAnalyzer():
 
 	def est_sentiment(self, headlines):
 		"""
-		Returns the estimated sentiment for a group of headlines
+		Returns the overall estimated sentiment for a group of headlines.
+		this is done by running the calculated feature vector for each individual headline through the random forest 
+		to estimate its sentiment, then polling all resulting sentiments, selecting the most common as the result.
 
 		PARAMS:
 			headlines - An array of headline strings
 		""" 
 
-		# get feature vector representing entire headline, 
-		headline_feature_vecs = [self.__average_feature_vec(headline) for headline in headlines]
+		# Use __average_feature_vec() to get a feature vector representing a headline
+		# Create an array containing the resulting feature vector from each of the headlines
+		headlines_feature_vecs = [self.__average_feature_vec(headline) for headline in headlines]
 
-		result = self.forest.predict(headline_feature_vecs)
-		print(f"SENTMENT: ------------------- {result}")
+		sentiments = self.forest.predict(headlines_feature_vecs)
+		# Result is the most frequently occuring sentiment - so poll results
+		occurences = Counter(sentiments)
+		result = occurences.most_common(1)[0][0]
+
+		print(f"OVERALL SENTIMENT ------ {result}")
 		return result

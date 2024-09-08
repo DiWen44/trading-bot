@@ -1,4 +1,5 @@
 import sentimentAnalyzer
+import bot
 
-engine = sentimentAnalyzer.SentimentAnalyzer("training_data.csv")
-engine.est_sentiment(["$ESI on lows, down $1.50 to $2.50 BK a real possibility"])
+bot = bot.Bot()
+del bot # Explicitly call bot's destructor
