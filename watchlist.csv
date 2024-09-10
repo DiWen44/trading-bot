@@ -1,6 +1,6 @@
-name,symbol,value_owned,latest_price
-microsoft,MSFT,0,
-apple,AAPL,0,
-google,GOOG,0,
-tesla,TSLA,0,
-amazon,AMZN,0,
+name,symbol,owned
+microsoft,MSFT,0
+apple,AAPL,0
+google,GOOG,0
+tesla,TSLA,0
+amazon,AMZN,0
