@@ -151,7 +151,7 @@ class SentimentAnalyzer():
 
 	def est_sentiment(self, headlines):
 		"""
-		Returns the overall estimated sentiment for a group of headlines.
+		Returns the overall estimated sentiment for a group of headlines (e.g. 'positive', 'negative', or 'neutral')
 		this is done by running the calculated feature vector for each individual headline through the random forest 
 		to estimate its sentiment, then polling all resulting sentiments, selecting the most common as the result.
 

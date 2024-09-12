@@ -19,8 +19,6 @@ class Bot():
 
 		finnhub_client - A finnhub API client object that allows us to make discretionary requests to finnhub
 
-		finnhub_websocket - A websocket.WebSocketApp object that will allow us to stream real-time price data from finnhub (seperate from the finnhub API client)
-
 		newsapi_key - The API key for newsAPI
 
 		watchlist - A pandas dataframe containing the names and ticker symbols of stocks we will be trading, as well as the quantity of stock the bot is holding (owned).
@@ -29,10 +27,13 @@ class Bot():
 
 		cash - How much cash (USD) the bot currently holds (is added to when shares are sold, and drawn from when shares are bought).
 				Stored in cash.txt
+
+		cash_at_risk - Proportion of cash that is allowed to be risked on one trade. given by (maximum cash sum to risk at once)/(total cash)
+						(e.g. if account_risk is 0.2, then 20% of the cash can be spent on one trade)
 	"""
 
 
-	def __init__(self):
+	def __init__(self, cash_at_risk):
 
 		# Load API keys from .env
 		load_dotenv()
@@ -42,12 +43,6 @@ class Bot():
 
 		finnhub_key = os.getenv('FINNHUB_KEY')
 		self.finnhub_client = finnhub.Client(api_key=finnhub_key)
-
-		self.finnhub_websocket = websocket.WebSocketApp(f"wss://ws.finnhub.io?token={finnhub_key}",
-												  on_open=self.__on_finnhub_websocket_open,
-												  on_message=self.__on_finnhub_websocket_message,
-												  on_error=self.__on_finnhub_websocket_error,
-												  on_close=self.__on_finnhub_websocket_close)
 		
 		self.newsapi_key = os.getenv('NEWSAPI_KEY')
 
@@ -55,6 +50,8 @@ class Bot():
 
 		with open('cash.txt','r') as cash_file: 
 			self.cash = int(cash_file.read())
+
+		self.cash_at_risk = cash_at_risk
 	
 
 	def __del__(self):
@@ -67,57 +64,20 @@ class Bot():
 		self.watchlist.to_csv('watchlist.csv', index=False)
 		with open('cash.txt','w') as cash_file:
 			cash_file.write(str(self.cash))
-
-
-	def __on_finnhub_websocket_open(self, ws):
-		"""
-		To be passed to constructor for the finnhub WebSocketApp, when that class is instantiated in bot's constructor.ß
-		Subscribes to stocks on watchlist, so that bot gets websocket messages when price changes 
-		"""
-
-		print("FINNHUB WEBSOCKET CONNECTION OPENED")
-
-		def subscribe(symbol):
-			self.finnhub_websocket.send('{"type":"subscribe","symbol":"' + symbol + '"}')
-
-		self.watchlist['symbol'].apply(subscribe, axis=1)
 	
-
-	def __on_finnhub_websocket_message(self, ws, message):
-		"""
-		To be passed to constructor for the finnhub WebSocketApp, when that class is instantiated in bot's constructor.
-		Called automatically when bot receives new data from finnhub's websocket server.
-		Since in __on_websocket_open() we subscribed to stock prices, this will be called when finnhub sends a price update.
-
-		We want to execute our trading algorithm every time new data comes in from finnhub, so we will call trading_strategy here
-		""" 
-		
-		print(message)
-		msg_dict = ast.literal_eval(message)
-		symbol = msg_dict['data'][0]['s']
-		latest_price = msg_dict['data'][0]['p']
-
-		self.__trading_strat(symbol, latest_price)
-
 	
-	def __on_finnhub_websocket_error(self, ws, error):
+	def __get_price(self, symbol):
 		"""
-		To be passed to constructor for the finnhub WebSocketApp, when that class is instantiated in bot's constructor.
-		Called automatically when a websocket error occurs.
-		""" 
-		print("FINNHUB WEBSOCKET ERROR:")
-		print(error)
+		Gets a company's latest recorded share price from finnhub
 
-	
-	def __on_finnhub_websocket_close(self, ws):
+		PARAMS:
+			symbol - The company's ticker symbol
 		"""
-		To be passed to constructor for the finnhub WebSocketApp, when that class is instantiated in bot's constructor.
-		Called automatically when the websocket connection is closed
-		"""
-		print("FINNHUB WEBSOCKET CONNECTION CLOSED")
+		return finnhub.quote(symbol)['c']
+
  
 
-	def get_headlines(self, company, days):
+	def __get_headlines(self, company, days):
 		"""
 		Gets news headlines from newsAPI that are pertinent to a given company.
 		Returned in the form of an array of strings, each string representing the headline of an article
@@ -137,21 +97,29 @@ class Bot():
 		return headlines
 
 
-	def __trading_strat(self, symbol, latest_price):
+	def trading_strat(self, symbol):
 		"""
 		Actually executes trades based on collated data.
 		Essentially, this method defines the trading strategy with which we approach individual stocks
 
 		PARAMS:
 			symbol - the ticker symbol of the company whose stock to trade
-			latest_price - The latest recorded price of the company's stock
 		"""
 
-		# Get news over the last day
+		# Get news sentiment over the last day
 		company_name = self.watchlist.loc[self.watchlist['symbol'] == symbol]['name']
 		headlines = self.__get_headlines(company_name, 1)
+		sentiment = self.sentiment_analyzer.est_sentient(headlines)
 
-		sentiment = self.sentiment_analyzer.est_sentiment(headlines)
+		price = self.__get_price(symbol)
+
+		# Buy if sentiment positive, sell if negative
+		# If sentiment neutral, do nothing
+		if sentiment == 'positive':
+			
+		elif sentiment == 'negative':
+			
+
 		
 
 
