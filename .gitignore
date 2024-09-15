@@ -4,3 +4,4 @@ venv
 nltk_data
 training_data.csv
 words_vector_space
+random_forest

@@ -3,6 +3,7 @@ from os import path
 from collections import Counter
 import numpy as np
 import pandas as pd
+import pickle
 
 from sklearn.ensemble import RandomForestClassifier
 from gensim.models import word2vec
@@ -38,15 +39,9 @@ class SentimentAnalyzer():
 
 		# Extract training data from CSV file
 		training_data = pd.read_csv(training_data_csv)
-
-		# Get sentences pool from headlines - to train word2vec model
-		sentences_pool = []
-		for headline in training_data['headline']:
-			headline_sentences = self.__headline_to_sentences(headline)
-			sentences_pool += headline_sentences
-
 		print("LOADED TRAINING DATA FROM FILE")
 
+		# Creating vector space model
 		# Use word2vec to learn a word2vec vector space model for the sentences
 		if path.isfile("words_vector_space"):
 			# If a model has already been created and saved
@@ -56,6 +51,13 @@ class SentimentAnalyzer():
 		else: 
 			# Case where no existant model is found - Create new model here
 			print("NO WORD2VEC VECTOR SPACE MODEL FOUND. CREATING NEW MODEL.")
+
+			# Get sentences pool from headlines - to train word2vec model
+			sentences_pool = []
+			for headline in training_data['headline']:
+				headline_sentences = self.__headline_to_sentences(headline)
+				sentences_pool += headline_sentences
+
 			self.words_vector_space = word2vec.Word2Vec(
 				sentences=sentences_pool,
 				vector_size=100,
@@ -65,14 +67,22 @@ class SentimentAnalyzer():
 			self.words_vector_space.init_sims(replace=True)
 			self.words_vector_space.save("words_vector_space") # Save model
 
-		# Create and train random forest classifier on vectors & yvalues
-		self.forest = RandomForestClassifier()
-		print("CREATED CLASSIFIER")
-
-		training_data['vector'] = training_data['headline'].apply(self.__average_feature_vec,) # Get feature vectors for each headline in training data
+		# Creating random forest classifier
+		if path.isfile('random_forest'):
+			# If a model has already been created and saved
+			# Use pickle to unserialize from file
+			self.forest = pickle.load(open('random_forest', 'rb'))
 		
-		self.forest = self.forest.fit(training_data['vector'].to_list(), training_data['sentiment'].to_list())
-		print("TRAINED CLASSIFIER")
+		else: 
+			# Case where no existant model is found - Create & train new random forest
+			self.forest = RandomForestClassifier()
+			print("CREATED CLASSIFIER")
+
+			training_data['vector'] = training_data['headline'].apply(self.__average_feature_vec,) # Get feature vectors for each headline in training data
+			self.forest = self.forest.fit(training_data['vector'].to_list(), training_data['sentiment'].to_list())
+
+			pickle.dump(self.forest, open('random_forest', 'wb')) # Use pickle to serialize model & save model to file
+			print("TRAINED CLASSIFIER")
 
 
 	def __headline_to_sentences(self, headline):
@@ -151,10 +161,12 @@ class SentimentAnalyzer():
 
 	def est_sentiment(self, headlines):
 		"""
-		Returns the overall estimated sentiment for a group of headlines (e.g. 'positive', 'negative', or 'neutral')
+		Deduces the overall estimated sentiment for a group of headlines (e.g. 'positive', 'negative', or 'neutral')
 		this is done by running the calculated feature vector for each individual headline through the random forest 
 		to estimate its sentiment, then polling all resulting sentiments, selecting the most common as the result.
 
+		Returns the overall sentiment, as well as a 'probability' that indicates the strength of that sentiment (0 being weak, 1 being strong)
+		
 		PARAMS:
 			headlines - An array of headline strings
 		""" 

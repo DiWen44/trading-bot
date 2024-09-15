@@ -116,9 +116,9 @@ class Bot():
 		# Buy if sentiment positive, sell if negative
 		# If sentiment neutral, do nothing
 		if sentiment == 'positive':
-			
+			print("buy")
 		elif sentiment == 'negative':
-			
+			print("sell")
 
 		
 
