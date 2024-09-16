@@ -6,6 +6,7 @@ import pandas as pd
 import pickle
 
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from gensim.models import word2vec
 
 import nltk
@@ -41,15 +42,25 @@ class SentimentAnalyzer():
 		training_data = pd.read_csv(training_data_csv)
 		print("LOADED TRAINING DATA FROM FILE")
 
-		# Creating vector space model
-		# Use word2vec to learn a word2vec vector space model for the sentences
-		if path.isfile("words_vector_space"):
-			# If a model has already been created and saved
-			self.words_vector_space = word2vec.Word2Vec.load("words_vector_space")
-			print("USING EXISTING WORD2VEC MODEL.")
+		self.words_vector_space = self.__make_words_vector_space(training_data)
+		self.random_forest = self.__make_sentiment_classifier(training_data)
 
-		else: 
-			# Case where no existant model is found - Create new model here
+
+	def __make_words_vector_space(self, training_data):
+		"""
+		Returns a Gensim word2vec model for words in the training haedlines
+		If one such model already exists and is saved in the 'words_vector_space' file, then load that one,
+		otherwise create and train a new model, which is then saved in that file.
+
+		PARAMS:
+			training_data - The pandas dataframe containing the training data
+		"""
+
+		if path.isfile("words_vector_space"): # If a model has already been created and saved
+			print("USING SAVED WORD2VEC MODEL.")
+			return word2vec.Word2Vec.load("words_vector_space")
+
+		else: # Case where no existant model is found - Create & train new model here
 			print("NO WORD2VEC VECTOR SPACE MODEL FOUND. CREATING NEW MODEL.")
 
 			# Get sentences pool from headlines - to train word2vec model
@@ -58,31 +69,57 @@ class SentimentAnalyzer():
 				headline_sentences = self.__headline_to_sentences(headline)
 				sentences_pool += headline_sentences
 
-			self.words_vector_space = word2vec.Word2Vec(
+			model = word2vec.Word2Vec(
 				sentences=sentences_pool,
 				vector_size=100,
 				min_count=10,
 				workers=4
 			)
-			self.words_vector_space.init_sims(replace=True)
-			self.words_vector_space.save("words_vector_space") # Save model
+			model.init_sims(replace=True)
+			model.save("words_vector_space") # Save model
 
-		# Creating random forest classifier
+			return model
+
+	
+	def __make_sentiment_classifier(self, training_data):
+		"""
+		Returns a scikit-learn random forest sentiment classifier
+		If one such model already exists and is serialized & saved in the 'random_forest' file, then load that one,
+		otherwise create and train a new random forest, which is then saved in that file.
+
+		NOTE: This adds to the training_data dataframe a new column, 'vector', 
+		which holds the feature vector representing each headline
+
+		PARAMS:
+			training_data - The pandas dataframe containing the training data
+		"""
+
 		if path.isfile('random_forest'):
 			# If a model has already been created and saved
 			# Use pickle to unserialize from file
-			self.forest = pickle.load(open('random_forest', 'rb'))
+			print("USING SAVED RANDOM FOREST")
+			return pickle.load(open('random_forest', 'rb'))
 		
-		else: 
-			# Case where no existant model is found - Create & train new random forest
-			self.forest = RandomForestClassifier()
+		else: # Case where no existant model is found - Create & train new random forest
+			print("NO SAVED RANDOM FOREST FOUND. CREATING NEW RANDOM FOREST")
+
+			forest = RandomForestClassifier()
 			print("CREATED CLASSIFIER")
 
 			training_data['vector'] = training_data['headline'].apply(self.__average_feature_vec,) # Get feature vectors for each headline in training data
-			self.forest = self.forest.fit(training_data['vector'].to_list(), training_data['sentiment'].to_list())
+			forest = forest.fit(training_data['vector'].to_list(), training_data['sentiment'].to_list())
 
-			pickle.dump(self.forest, open('random_forest', 'wb')) # Use pickle to serialize model & save model to file
+			pickle.dump(forest, open('random_forest', 'wb')) # Use pickle to serialize model & save model to file
 			print("TRAINED CLASSIFIER")
+			return forest
+	
+
+	def __make_sentiment_regressor(self, training_data):
+		"""
+		Returns a scikit-learn multinomial logistic regression model.
+		That can be used to classify a news headline as positive, negative or neutral in sentiment.
+		Since the response variable of 
+		"""
 
 
 	def __headline_to_sentences(self, headline):
