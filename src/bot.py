@@ -116,9 +116,27 @@ class Bot():
 		# Buy if sentiment positive, sell if negative
 		# If sentiment neutral, do nothing
 		if sentiment == 'positive':
-			print("buy")
+			# Buy as much as self.cash_at_risk allows
+			spend = self.cash_at_risk * self.cash
+			if spend != 0:
+
+				units_to_buy = spend // price
+				self.watchlist.loc[[self.watchlist['symbol'] == symbol], 'owned'] += units_to_buy
+				self.cash -= spend
+
+				print(f"BOUGHT {units_to_buy} OF {symbol}")
+
 		elif sentiment == 'negative':
-			print("sell")
+			# Sell entire holding
+			holding = self.watchlist.loc[[self.watchlist['symbol'] == symbol], 'owned']
+			if holding != 0:
+				self.watchlist.loc[[self.watchlist['symbol'] == symbol], 'owned'] = 0
+
+				gain = price * holding
+				cash += gain
+
+				print(f"SOLD {holding} OF {symbol}")
+
 
 		
 
